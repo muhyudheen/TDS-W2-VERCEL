@@ -8,10 +8,10 @@ from pydantic import BaseModel
 from typing import List
 import numpy as np
 
-# Initialize the FastAPI app
+API_VERSION = "2.0"  # Our new version number
+
 app = FastAPI()
 
-# Enable CORS (Cross-Origin Resource Sharing) to allow requests from any origin.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -20,48 +20,40 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Define a Pydantic model for the request body
 class LatencyRequest(BaseModel):
     regions: List[str]
     threshold_ms: int
 
-# Load the telemetry data from the JSON file
 data_path = os.path.join(os.path.dirname(__file__), 'vercel-latency.json')
 with open(data_path, 'r') as f:
     telemetry_data = json.load(f)
 
-# Define the main endpoint
+# NEW: A simple GET endpoint to check the API version
+@app.get("/api/latency")
+async def get_version():
+    return {"api_version": API_VERSION, "message": "API is running"}
+
 @app.post("/api/latency")
 async def get_latency_stats(request_data: LatencyRequest):
-    """
-    Analyzes latency data for specified regions and returns key metrics.
-    """
-    response = {}
+    response = {"api_version": API_VERSION} # Add version to the response
     regions_to_process = request_data.regions
     threshold = request_data.threshold_ms
 
-    # Loop through each region provided in the request
     for region in regions_to_process:
-        # Filter the full dataset for records matching the current region
         region_data = [d for d in telemetry_data if d.get("region") == region]
 
         if not region_data:
             response[region] = {"error": "No data found for this region"}
             continue
 
-        # Extract latencies and uptimes into separate lists for calculations
         latencies = [d["latency_ms"] for d in region_data]
         uptimes = [d["uptime_percent"] for d in region_data]
-
-        # Calculate breaches by counting how many latencies are above the threshold
         breaches = sum(1 for lat in latencies if lat > threshold)
 
-        # Calculate the required metrics using NumPy for efficiency
         response[region] = {
             "avg_latency": round(np.mean(latencies), 2),
             "p95_latency": round(np.percentile(latencies, 95), 2),
             "avg_uptime": round(np.mean(uptimes), 2),
             "breaches": breaches,
         }
-
     return response
