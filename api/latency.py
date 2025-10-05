@@ -12,28 +12,25 @@ import numpy as np
 app = FastAPI()
 
 # Enable CORS (Cross-Origin Resource Sharing) to allow requests from any origin.
-# This is required by the prompt.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all domains
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"], # Allows only POST requests
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Define a Pydantic model for the request body to ensure
-# the incoming data has the correct structure.
+# Define a Pydantic model for the request body
 class LatencyRequest(BaseModel):
     regions: List[str]
     threshold_ms: int
 
-# Load the telemetry data from the JSON file.
-# This path is relative to the current script, making it work on Vercel.
+# Load the telemetry data from the JSON file
 data_path = os.path.join(os.path.dirname(__file__), 'vercel-latency.json')
 with open(data_path, 'r') as f:
     telemetry_data = json.load(f)
 
-# Define the main endpoint. It accepts POST requests at /api/latency.
+# Define the main endpoint
 @app.post("/api/latency")
 async def get_latency_stats(request_data: LatencyRequest):
     """
